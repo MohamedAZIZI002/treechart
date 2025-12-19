@@ -76,8 +76,11 @@ function drawViz(vizData) {
   const dims = vizData.fields?.dims || vizData.fields?.dimensions || [];
   const metrics = vizData.fields?.metric || vizData.fields?.metrics || [];
 
-  const dimIds = (Array.isArray(dims) ? dims : []).map((d) => d.id);
-  const metricId = (Array.isArray(metrics) && metrics.length > 0) ? metrics[0].id : null;
+  const dimList = Array.isArray(dims) ? dims : [];
+  const metricList = Array.isArray(metrics) ? metrics : [];
+
+  const dimIds = dimList.map((d) => d.id);
+  const metricId = metricList.length > 0 ? metricList[0].id : null;
 
   const rows = vizData.tables?.DEFAULT || [];
 
@@ -94,13 +97,41 @@ function drawViz(vizData) {
 
   const showValue = !!getStyle(vizData, "showValue", false);
   const fontSize = Number(getStyle(vizData, "fontSize", 12));
+   const fontFamily = getStyle(vizData, "fontFamily", "Inter, Arial, sans-serif");
   const nodeRadius = Number(getStyle(vizData, "nodeRadius", 4));
   const indent = Number(getStyle(vizData, "indent", 180));
   const rowHeight = Number(getStyle(vizData, "rowHeight", 24));
+   const linkWidth = Number(getStyle(vizData, "linkWidth", 1.5));
+   const backgroundColor = getStyle(vizData, "backgroundColor", "#ffffff");
+   const labelColor = getStyle(vizData, "labelColor", "#111111");
+   const linkColor = getStyle(vizData, "linkColor", "#9aa4b5");
+   const nodeColor = getStyle(vizData, "nodeColor", "#6c8cf5");
+   const nodeCollapsedColor = getStyle(vizData, "nodeCollapsedColor", "#324679");
 
   const data = buildHierarchy(rows, dimIds, metricId);
 
-  const svg = d3.select(rootEl).append("svg").attr("width", width).attr("height", height);
+  rootEl.style.background = backgroundColor;
+  rootEl.style.color = labelColor;
+  rootEl.style.fontFamily = fontFamily;
+
+  const container = document.createElement("div");
+  container.className = "viz-container";
+  rootEl.appendChild(container);
+
+  const meta = document.createElement("div");
+  meta.className = "meta-panel";
+  const dimBadges = dimIds.length
+    ? dimIds
+        .map((id) => `<span class="pill">${dimList.find((d) => d.id === id)?.name || id}</span>`)
+        .join(" ")
+    : '<span class="pill empty">Aucune dimension</span>';
+  const metricBadge = metricId
+    ? `<span class="pill metric">${metricList.find((m) => m.id === metricId)?.name || metricId}</span>`
+    : '<span class="pill metric empty">Aucune métrique</span>';
+  meta.innerHTML = `<strong>Dimensions :</strong> ${dimBadges} &nbsp; <strong>Métrique :</strong> ${metricBadge}`;
+  container.appendChild(meta);
+
+  const svg = d3.select(container).append("svg").attr("width", width);
   const g = svg.append("g").attr("transform", "translate(20,20)");
 
   const dx = rowHeight;
@@ -137,7 +168,11 @@ function drawViz(vizData) {
     });
 
     const innerHeight = right.x - left.x + 40;
-    svg.attr("height", Math.max(height, innerHeight));
+
+    // Espace disponible moins le panneau de métadonnées.
+    const metaHeight = meta.offsetHeight || 0;
+    const svgHeight = Math.max(height - metaHeight - 16, innerHeight);
+    svg.attr("height", svgHeight);
 
     const node = g.selectAll("g.node").data(nodes, (d) => d.id);
 
@@ -160,7 +195,7 @@ function drawViz(vizData) {
     nodeEnter
       .append("circle")
       .attr("r", nodeRadius)
-      .attr("fill", (d) => (d._children ? "#555" : "#999"));
+      .attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
 
     nodeEnter
       .append("text")
@@ -168,6 +203,8 @@ function drawViz(vizData) {
       .attr("x", (d) => (d._children ? -10 : 10))
       .attr("text-anchor", (d) => (d._children ? "end" : "start"))
       .style("font-size", `${fontSize}px`)
+      .style("fill", labelColor)
+      .style("font-family", fontFamily)
       .text((d) => {
         if (d.depth === 0) return "";
         const base = d.data.name;
@@ -177,22 +214,24 @@ function drawViz(vizData) {
 
     const nodeUpdate = nodeEnter.merge(node);
     nodeUpdate.transition().duration(250).attr("transform", (d) => `translate(${d.y},${d.x})`);
-    nodeUpdate.select("circle").attr("fill", (d) => (d._children ? "#555" : "#999"));
+    nodeUpdate.select("circle").attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
 
     node.exit().transition().duration(250).attr("transform", () => `translate(${source.y},${source.x})`).remove();
 
     const link = g.selectAll("path.link").data(links, (d) => d.target.id);
 
-    const linkEnter = link
-      .enter()
-      .append("path")
-      .attr("class", "link")
-      .attr("d", () => {
-        const o = { x: source.x0, y: source.y0 };
-        return diagonal({ source: o, target: o });
-      });
+  const linkEnter = link
+    .enter()
+    .append("path")
+    .attr("class", "link")
+    .attr("stroke", linkColor)
+    .attr("stroke-width", linkWidth)
+    .attr("d", () => {
+      const o = { x: source.x0, y: source.y0 };
+      return diagonal({ source: o, target: o });
+    });
 
-    linkEnter.merge(link).transition().duration(250).attr("d", diagonal);
+    linkEnter.merge(link).transition().duration(250).attr("d", diagonal).attr("stroke", linkColor).attr("stroke-width", linkWidth);
 
     link.exit()
       .transition()
