@@ -1,0 +1,23 @@
+{
+  "data": {
+    "concepts": [
+      { "id": "dims", "name": "Dimensions (hiérarchie)", "type": "DIMENSION", "count": { "min": 2, "max": 6 } },
+      { "id": "metric", "name": "Metric (optionnel)", "type": "METRIC", "count": { "min": 0, "max": 1 } }
+    ]
+  },
+  "style": {
+    "sections": [
+      {
+        "name": "Apparence",
+        "properties": [
+          { "id": "showValue", "name": "Afficher la valeur (metric) dans le label", "type": "CHECKBOX" },
+          { "id": "fontSize", "name": "Taille police", "type": "NUMBER", "min": 8, "max": 24 },
+          { "id": "nodeRadius", "name": "Rayon des noeuds", "type": "NUMBER", "min": 2, "max": 12 },
+          { "id": "indent", "name": "Indent (horizontal)", "type": "NUMBER", "min": 80, "max": 400 },
+          { "id": "rowHeight", "name": "Hauteur ligne (vertical)", "type": "NUMBER", "min": 14, "max": 60 }
+        ]
+      }
+    ]
+  },
+  "interactions": { "filter": true }
+}

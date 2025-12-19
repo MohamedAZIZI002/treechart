@@ -1,0 +1,23 @@
+{
+  "name": "Collapsible Tree (Community Viz)",
+  "organization": "OneCloud-Carrefour",
+  "description": "Collapsible tree for hierarchical dimensions (Looker Studio community visualization).",
+  "organizationUrl": "https://example.com",
+  "supportUrl": "mailto:support@example.com",
+  "privacyPolicyUrl": "https://example.com/privacy",
+  "termsOfServiceUrl": "https://example.com/terms",
+  "devMode": true,
+  "components": [
+    {
+      "id": "collapsible_tree",
+      "name": "Collapsible Tree",
+      "description": "Expandable/collapsible hierarchical tree (dims + optional metric).",
+      "iconUrl": "https://storage.googleapis.com/roadmap-vizl/icon.png",
+      "resource": {
+        "js": "gs://collapsible_tree/viz.js",
+        "config": "gs://collapsible_tree/viz-config.json",
+        "css": "gs://collapsible_tree/viz.css"
+      }
+    }
+  ]
+}

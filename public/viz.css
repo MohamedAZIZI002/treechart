@@ -1,0 +1,5 @@
+html, body { margin: 0; padding: 0; overflow: hidden; font-family: Arial, sans-serif; }
+#viz { width: 100vw; height: 100vh; }
+.node circle { cursor: pointer; }
+.node text { user-select: none; }
+.link { fill: none; stroke: #999; stroke-opacity: 0.6; }
