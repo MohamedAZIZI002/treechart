@@ -63,153 +63,211 @@ function drawViz(vizData) {
   const rootEl = ensureRoot();
   clear(rootEl);
 
-  const dscc = window.dscc;
-  if (!dscc) {
-    rootEl.innerHTML =
-      "<div style='padding:12px'>dscc introuvable. Vérifie que dscc.min.js est bien concaténé dans dist/viz.js.</div>";
-    return;
-  }
+  try {
+    const dscc = window.dscc;
+    if (!dscc) {
+      rootEl.innerHTML =
+        "<div style='padding:12px'>dscc introuvable. Vérifie que dscc.min.js est bien concaténé dans dist/viz.js.</div>";
+      return;
+    }
 
-  const width = dscc.getWidth();
-  const height = dscc.getHeight();
+    if (!d3 || typeof d3.hierarchy !== "function") {
+      rootEl.innerHTML =
+        "<div style='padding:12px'>La librairie D3 n’a pas été chargée. Recharge la page ou rebuild le bundle.</div>";
+      return;
+    }
 
-  const dims = vizData.fields?.dims || vizData.fields?.dimensions || [];
-  const metrics = vizData.fields?.metric || vizData.fields?.metrics || [];
+    const width = dscc.getWidth();
+    const height = dscc.getHeight();
 
-  const dimIds = (Array.isArray(dims) ? dims : []).map((d) => d.id);
-  const metricId = (Array.isArray(metrics) && metrics.length > 0) ? metrics[0].id : null;
+    const dims = vizData?.fields?.dims || vizData?.fields?.dimensions || [];
+    const metrics = vizData?.fields?.metric || vizData?.fields?.metrics || [];
 
-  const rows = vizData.tables?.DEFAULT || [];
+    const dimList = Array.isArray(dims) ? dims : [];
+    const metricList = Array.isArray(metrics) ? metrics : [];
 
-  if (!dimIds || dimIds.length < 2) {
-    rootEl.innerHTML =
-      "<div style='padding:12px'>Ajoute au moins <b>2 dimensions</b> pour construire l’arbre.</div>";
-    return;
-  }
+    const dimIds = dimList.map((d) => d.id).filter(Boolean);
+    const metricId = metricList.length > 0 ? metricList[0].id : null;
 
-  if (!rows.length) {
-    rootEl.innerHTML = "<div style='padding:12px'>Aucune donnée.</div>";
-    return;
-  }
+    const rows = Array.isArray(vizData?.tables?.DEFAULT) ? vizData.tables.DEFAULT : [];
 
-  const showValue = !!getStyle(vizData, "showValue", false);
-  const fontSize = Number(getStyle(vizData, "fontSize", 12));
-  const nodeRadius = Number(getStyle(vizData, "nodeRadius", 4));
-  const indent = Number(getStyle(vizData, "indent", 180));
-  const rowHeight = Number(getStyle(vizData, "rowHeight", 24));
+    if (!dimIds || dimIds.length < 2) {
+      rootEl.innerHTML =
+        "<div style='padding:12px'>Ajoute au moins <b>2 dimensions</b> pour construire l’arbre.</div>";
+      return;
+    }
 
-  const data = buildHierarchy(rows, dimIds, metricId);
+    if (!rows.length) {
+      rootEl.innerHTML = "<div style='padding:12px'>Aucune donnée.</div>";
+      return;
+    }
 
-  const svg = d3.select(rootEl).append("svg").attr("width", width).attr("height", height);
-  const g = svg.append("g").attr("transform", "translate(20,20)");
+    const showValue = !!getStyle(vizData, "showValue", false);
+    const fontSize = Number(getStyle(vizData, "fontSize", 12));
+    const fontFamily = getStyle(vizData, "fontFamily", "Inter, Arial, sans-serif");
+    const nodeRadius = Number(getStyle(vizData, "nodeRadius", 4));
+    const indent = Number(getStyle(vizData, "indent", 180));
+    const rowHeight = Number(getStyle(vizData, "rowHeight", 24));
+    const linkWidth = Number(getStyle(vizData, "linkWidth", 1.5));
+    const backgroundColor = getStyle(vizData, "backgroundColor", "#ffffff");
+    const labelColor = getStyle(vizData, "labelColor", "#111111");
+    const linkColor = getStyle(vizData, "linkColor", "#9aa4b5");
+    const nodeColor = getStyle(vizData, "nodeColor", "#6c8cf5");
+    const nodeCollapsedColor = getStyle(vizData, "nodeCollapsedColor", "#324679");
 
-  const dx = rowHeight;
-  const dy = indent;
+    const data = buildHierarchy(rows, dimIds, metricId);
 
-  const root = d3.hierarchy(data);
-  root.x0 = 0;
-  root.y0 = 0;
+    rootEl.style.background = backgroundColor;
+    rootEl.style.color = labelColor;
+    rootEl.style.fontFamily = fontFamily;
 
-  // collapse au-delà du niveau 1
-  root.descendants().forEach((d) => {
-    d.id = d.id || Math.random().toString(16).slice(2);
-    d._children = d.children;
-    if (d.depth > 1) d.children = null;
-  });
+    const container = document.createElement("div");
+    container.className = "viz-container";
+    rootEl.appendChild(container);
 
-  const tree = d3.tree().nodeSize([dx, dy]);
+    const meta = document.createElement("div");
+    meta.className = "meta-panel";
+    const dimBadges = dimIds.length
+      ? dimIds
+          .map((id) => `<span class=\"pill\">${dimList.find((d) => d.id === id)?.name || id}</span>`)
+          .join(" ")
+      : '<span class="pill empty">Aucune dimension</span>';
+    const metricBadge = metricId
+      ? `<span class="pill metric">${metricList.find((m) => m.id === metricId)?.name || metricId}</span>`
+      : '<span class="pill metric empty">Aucune métrique</span>';
+    meta.innerHTML = `<strong>Dimensions :</strong> ${dimBadges} &nbsp; <strong>Métrique :</strong> ${metricBadge}`;
+    container.appendChild(meta);
 
-  function diagonal(d) {
-    return d3.linkHorizontal().x((x) => x.y).y((y) => y.x)(d);
-  }
+    const svg = d3.select(container).append("svg").attr("width", width);
+    const g = svg.append("g").attr("transform", "translate(20,20)");
 
-  function update(source) {
-    const nodes = root.descendants();
-    const links = root.links();
+    const dx = rowHeight;
+    const dy = indent;
 
-    tree(root);
+    const root = d3.hierarchy(data);
+    root.x0 = 0;
+    root.y0 = 0;
 
-    let left = root;
-    let right = root;
-    root.eachBefore((n) => {
-      if (n.x < left.x) left = n;
-      if (n.x > right.x) right = n;
+    // collapse au-delà du niveau 1
+    root.descendants().forEach((d) => {
+      d.id = d.id || Math.random().toString(16).slice(2);
+      d._children = d.children;
+      if (d.depth > 1) d.children = null;
     });
 
-    const innerHeight = right.x - left.x + 40;
-    svg.attr("height", Math.max(height, innerHeight));
+    const tree = d3.tree().nodeSize([dx, dy]);
 
-    const node = g.selectAll("g.node").data(nodes, (d) => d.id);
+    function diagonal(d) {
+      return d3.linkHorizontal().x((x) => x.y).y((y) => y.x)(d);
+    }
 
-    const nodeEnter = node
-      .enter()
-      .append("g")
-      .attr("class", "node")
-      .attr("transform", () => `translate(${source.y0},${source.x0})`)
-      .on("click", (event, d) => {
-        if (d.children) {
-          d._children = d.children;
-          d.children = null;
-        } else {
-          d.children = d._children;
-          d._children = null;
-        }
-        update(d);
+    function update(source) {
+      const nodes = root.descendants();
+      const links = root.links();
+
+      tree(root);
+
+      let left = root;
+      let right = root;
+      root.eachBefore((n) => {
+        if (n.x < left.x) left = n;
+        if (n.x > right.x) right = n;
       });
 
-    nodeEnter
-      .append("circle")
-      .attr("r", nodeRadius)
-      .attr("fill", (d) => (d._children ? "#555" : "#999"));
+      const innerHeight = right.x - left.x + 40;
 
-    nodeEnter
-      .append("text")
-      .attr("dy", "0.32em")
-      .attr("x", (d) => (d._children ? -10 : 10))
-      .attr("text-anchor", (d) => (d._children ? "end" : "start"))
-      .style("font-size", `${fontSize}px`)
-      .text((d) => {
-        if (d.depth === 0) return "";
-        const base = d.data.name;
-        if (showValue) return `${base} (${d.value ?? 0})`;
-        return base;
+      // Espace disponible moins le panneau de métadonnées.
+      const metaHeight = meta.offsetHeight || 0;
+      const svgHeight = Math.max(height - metaHeight - 16, innerHeight);
+      svg.attr("height", svgHeight);
+
+      const node = g.selectAll("g.node").data(nodes, (d) => d.id);
+
+      const nodeEnter = node
+        .enter()
+        .append("g")
+        .attr("class", "node")
+        .attr("transform", () => `translate(${source.y0},${source.x0})`)
+        .on("click", (event, d) => {
+          if (d.children) {
+            d._children = d.children;
+            d.children = null;
+          } else {
+            d.children = d._children;
+            d._children = null;
+          }
+          update(d);
+        });
+
+      nodeEnter
+        .append("circle")
+        .attr("r", nodeRadius)
+        .attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
+
+      nodeEnter
+        .append("text")
+        .attr("dy", "0.32em")
+        .attr("x", (d) => (d._children ? -10 : 10))
+        .attr("text-anchor", (d) => (d._children ? "end" : "start"))
+        .style("font-size", `${fontSize}px`)
+        .style("fill", labelColor)
+        .style("font-family", fontFamily)
+        .text((d) => {
+          if (d.depth === 0) return "";
+          const base = d.data.name;
+          if (showValue) return `${base} (${d.value ?? 0})`;
+          return base;
+        });
+
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.transition().duration(250).attr("transform", (d) => `translate(${d.y},${d.x})`);
+      nodeUpdate.select("circle").attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
+
+      node.exit().transition().duration(250).attr("transform", () => `translate(${source.y},${source.x})`).remove();
+
+      const link = g.selectAll("path.link").data(links, (d) => d.target.id);
+
+      const linkEnter = link
+        .enter()
+        .append("path")
+        .attr("class", "link")
+        .attr("stroke", linkColor)
+        .attr("stroke-width", linkWidth)
+        .attr("d", () => {
+          const o = { x: source.x0, y: source.y0 };
+          return diagonal({ source: o, target: o });
+        });
+
+      linkEnter
+        .merge(link)
+        .transition()
+        .duration(250)
+        .attr("d", diagonal)
+        .attr("stroke", linkColor)
+        .attr("stroke-width", linkWidth);
+
+      link
+        .exit()
+        .transition()
+        .duration(250)
+        .attr("d", () => {
+          const o = { x: source.x, y: source.y };
+          return diagonal({ source: o, target: o });
+        })
+        .remove();
+
+      root.eachBefore((d) => {
+        d.x0 = d.x;
+        d.y0 = d.y;
       });
+    }
 
-    const nodeUpdate = nodeEnter.merge(node);
-    nodeUpdate.transition().duration(250).attr("transform", (d) => `translate(${d.y},${d.x})`);
-    nodeUpdate.select("circle").attr("fill", (d) => (d._children ? "#555" : "#999"));
-
-    node.exit().transition().duration(250).attr("transform", () => `translate(${source.y},${source.x})`).remove();
-
-    const link = g.selectAll("path.link").data(links, (d) => d.target.id);
-
-    const linkEnter = link
-      .enter()
-      .append("path")
-      .attr("class", "link")
-      .attr("d", () => {
-        const o = { x: source.x0, y: source.y0 };
-        return diagonal({ source: o, target: o });
-      });
-
-    linkEnter.merge(link).transition().duration(250).attr("d", diagonal);
-
-    link.exit()
-      .transition()
-      .duration(250)
-      .attr("d", () => {
-        const o = { x: source.x, y: source.y };
-        return diagonal({ source: o, target: o });
-      })
-      .remove();
-
-    root.eachBefore((d) => {
-      d.x0 = d.x;
-      d.y0 = d.y;
-    });
+    update(root);
+  } catch (err) {
+    console.error(err);
+    rootEl.innerHTML =
+      "<div style='padding:12px'>Une erreur est survenue dans la visualisation (voir la console). Vérifie tes dimensions/métriques et rebuild le package.</div>";
   }
-
-  update(root);
 }
 
 (function subscribe() {

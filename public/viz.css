@@ -1,5 +1,12 @@
-html, body { margin: 0; padding: 0; overflow: hidden; font-family: Arial, sans-serif; }
-#viz { width: 100vw; height: 100vh; }
-.node circle { cursor: pointer; }
+html, body { margin: 0; padding: 0; overflow: hidden; font-family: Arial, sans-serif; background: #f6f8fb; }
+#viz { width: 100vw; height: 100vh; box-sizing: border-box; }
+.viz-container { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 4px 12px; box-sizing: border-box; height: 100%; }
+.meta-panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12px; line-height: 1.4; padding: 8px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.03); border: 1px solid rgba(0, 0, 0, 0.05); }
+.meta-panel strong { font-size: 12px; font-weight: 700; }
+.pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: rgba(0, 0, 0, 0.06); border: 1px solid rgba(0, 0, 0, 0.08); }
+.pill.metric { background: rgba(0, 123, 255, 0.08); border-color: rgba(0, 123, 255, 0.2); }
+.pill.empty { opacity: 0.55; font-style: italic; }
+svg { flex: 1 1 auto; width: 100%; border-radius: 8px; box-sizing: border-box; }
+.node circle { cursor: pointer; transition: fill 0.2s ease, stroke 0.2s ease; }
 .node text { user-select: none; }
-.link { fill: none; stroke: #999; stroke-opacity: 0.6; }
+.link { fill: none; stroke-opacity: 0.6; }
