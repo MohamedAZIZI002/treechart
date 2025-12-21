@@ -1,30 +1,129 @@
 {
-  "data": {
-    "concepts": [
-      { "id": "dims", "name": "Dimensions (hiérarchie)", "type": "DIMENSION", "count": { "min": 2, "max": 6 } },
-      { "id": "metric", "name": "Metric (optionnel)", "type": "METRIC", "count": { "min": 0, "max": 1 } }
-    ]
-  },
-  "style": {
-    "sections": [
-      {
-        "name": "Apparence",
-        "properties": [
-          { "id": "showValue", "name": "Afficher la valeur (metric) dans le label", "type": "CHECKBOX" },
-          { "id": "fontSize", "name": "Taille police", "type": "NUMBER", "min": 8, "max": 24 },
-          { "id": "fontFamily", "name": "Police (CSS)", "type": "TEXTINPUT", "placeholder": "Inter, Arial, sans-serif" },
-          { "id": "nodeRadius", "name": "Rayon des noeuds", "type": "NUMBER", "min": 2, "max": 12 },
-          { "id": "indent", "name": "Indent (horizontal)", "type": "NUMBER", "min": 80, "max": 400 },
-          { "id": "rowHeight", "name": "Hauteur ligne (vertical)", "type": "NUMBER", "min": 14, "max": 60 },
-          { "id": "linkWidth", "name": "Épaisseur des liens", "type": "NUMBER", "min": 1, "max": 6 },
-          { "id": "backgroundColor", "name": "Fond", "type": "FILL", "defaultValue": "#ffffff" },
-          { "id": "labelColor", "name": "Couleur du texte", "type": "FILL", "defaultValue": "#111111" },
-          { "id": "linkColor", "name": "Couleur des liens", "type": "FILL", "defaultValue": "#9aa4b5" },
-          { "id": "nodeColor", "name": "Couleur des noeuds ouverts", "type": "FILL", "defaultValue": "#6c8cf5" },
-          { "id": "nodeCollapsedColor", "name": "Couleur des noeuds fermés", "type": "FILL", "defaultValue": "#324679" }
-        ]
-      }
-    ]
-  },
-  "interactions": { "filter": true }
+  "data": [
+    {
+      "id": "concepts",
+      "label": "Données",
+      "elements": [
+        { "id": "dims", "label": "Dimensions (hiérarchie)", "type": "DIMENSION" },
+        { "id": "metric", "label": "Metric (optionnel)", "type": "METRIC" }
+      ]
+    }
+  ],
+  "style": [
+    {
+      "id": "appearance",
+      "label": "Apparence",
+      "elements": [
+        {
+          "id": "fontSize",
+          "label": "Taille police",
+          "type": "FONT_SIZE",
+          "options": [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 30, 32, 36, 40, 44, 48, 60, 72, 84, 96],
+          "defaultValue": 12
+        },
+        {
+          "id": "showValue",
+          "label": "Afficher la valeur (metric) dans le label",
+          "type": "CHECKBOX",
+          "defaultValue": false
+        },
+        {
+          "id": "fontFamily",
+          "label": "Police (CSS)",
+          "type": "FONT_FAMILY",
+          "options": [
+            "Arial",
+            "Boogaloo",
+            "Bubblegum Sans",
+            "Chewy",
+            "Comic Sans MS",
+            "Coming Soon",
+            "Cormorant Unicase",
+            "Courier New",
+            "Droid",
+            "Droid Sans",
+            "Eater",
+            "Georgia",
+            "Great Vibes",
+            "Indie Flower",
+            "Lato",
+            "Lora",
+            "Montserrat",
+            "Oleo Script",
+            "Open Sans",
+            "Orbitron",
+            "Oswald",
+            "Permanent Marker",
+            "Quicksand",
+            "Raleway",
+            "Reenie Beanie",
+            "Roboto",
+            "Roboto Condensed",
+            "Syncopate",
+            "Times New Roman",
+            "Ubuntu",
+            "Ubuntu Mono",
+            "Verdana"
+          ],
+          "defaultValue": "Roboto"
+        },
+        {
+          "id": "nodeRadius",
+          "label": "Rayon des noeuds",
+          "type": "BORDER_RADIUS",
+          "options": [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100],
+          "defaultValue": 4
+        },
+        { "id": "indent", "label": "Indent (horizontal)", "type": "TEXTINPUT", "defaultValue": 180 },
+        { "id": "rowHeight", "label": "Hauteur ligne (vertical)", "type": "TEXTINPUT", "defaultValue": 24 },
+        {
+          "id": "linkWidth",
+          "label": "Épaisseur des liens",
+          "type": "LINE_WEIGHT",
+          "options": [0, 1, 2, 3, 4, 5],
+          "defaultValue": 1
+        },
+        { "id": "backgroundColor", "label": "Fond", "type": "FILL_COLOR", "defaultValue": "#ffffff" },
+        { "id": "labelColor", "label": "Couleur du texte", "type": "FONT_COLOR", "defaultValue": "#111111" },
+        { "id": "linkColor", "label": "Couleur des liens", "type": "FILL_COLOR", "defaultValue": "#9aa4b5" },
+        { "id": "nodeColor", "label": "Couleur des noeuds ouverts", "type": "FILL_COLOR", "defaultValue": "#6c8cf5" },
+        { "id": "nodeCollapsedColor", "label": "Couleur des noeuds fermés", "type": "FILL_COLOR", "defaultValue": "#324679" }
+      ]
+    },
+    {
+      "id": "visibility",
+      "label": "Options d’affichage",
+      "elements": [
+        { "id": "showLegend", "label": "Afficher la légende", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showGridlines", "label": "Afficher les grilles", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showAxes", "label": "Afficher les axes", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showDots", "label": "Afficher les points", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showFill", "label": "Remplir les zones", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showValues", "label": "Afficher les valeurs", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showLabels", "label": "Afficher les labels", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showTooltip", "label": "Afficher l’infobulle", "type": "CHECKBOX", "defaultValue": true }
+      ]
+    },
+    {
+      "id": "interactivity",
+      "label": "Interactions",
+      "elements": [
+        { "id": "enableZoom", "label": "Zoom", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "enablePan", "label": "Pan", "type": "CHECKBOX", "defaultValue": true }
+      ]
+    },
+    {
+      "id": "debug",
+      "label": "Débogage",
+      "elements": [
+        { "id": "showDebug", "label": "Afficher les logs de debug", "type": "CHECKBOX", "defaultValue": false }
+      ]
+    }
+  ],
+  "interactions": [
+    {
+      "id": "click",
+      "supportedActions": ["FILTER"]
+    }
+  ]
 }

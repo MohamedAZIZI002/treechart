@@ -24,8 +24,46 @@ function getStyle(vizData, id, fallback) {
   }
 }
 
-function buildHierarchy(rows, dimIds, metricId) {
+function resolveConfigIds(vizData, dimList, metricList) {
+  const fields = vizData?.fields || {};
+  const keys = Object.keys(fields);
+
+  const firstDimId = dimList?.[0]?.id;
+  const firstMetricId = metricList?.[0]?.id;
+
+  const dimension =
+    keys.find((k) => Array.isArray(fields[k]) && fields[k].some((f) => f.id === firstDimId)) || "dims";
+
+  const metric =
+    firstMetricId
+      ? keys.find((k) => Array.isArray(fields[k]) && fields[k].some((f) => f.id === firstMetricId)) || "metric"
+      : "metric";
+
+  return { dimension, metric };
+}
+
+function toNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function cellValue(cell) {
+  if (cell == null) return null;
+  if (typeof cell === "object") {
+    if ("value" in cell && cell.value !== undefined) return cell.value;
+    if ("formattedValue" in cell && cell.formattedValue !== undefined)
+      return cell.formattedValue;
+  }
+  return cell;
+}
+
+function buildHierarchy(rows, dimFields, metricField, configIds) {
   const root = { name: "root", children: [], value: 0 };
+
+  const dimConfigId = configIds?.dimension || "dims";
+  const metricConfigId = configIds?.metric || "metric";
+
+  const dimCount = Array.isArray(dimFields) ? dimFields.length : 0;
 
   const getOrCreateChild = (parent, name) => {
     if (!parent.children) parent.children = [];
@@ -39,11 +77,30 @@ function buildHierarchy(rows, dimIds, metricId) {
 
   for (const r of rows) {
     let cur = root;
-    for (const d of dimIds) {
-      const val = r[d] && r[d].value != null ? String(r[d].value) : "(null)";
+    for (let i = 0; i < dimCount; i++) {
+      const field = dimFields[i];
+
+      const fromConfig = Array.isArray(r[dimConfigId]) ? r[dimConfigId][i] : undefined;
+      const fromFieldId = r[field?.id];
+      const fromFieldArray = Array.isArray(fromFieldId) ? fromFieldId[i] : fromFieldId;
+
+      const resolved = cellValue(fromConfig ?? fromFieldArray);
+      const val = resolved != null ? String(resolved) : "(null)";
       cur = getOrCreateChild(cur, val);
     }
-    const m = metricId ? Number(r[metricId]?.value) || 0 : 1;
+
+    const metricCell = metricField
+      ? Array.isArray(r[metricConfigId])
+        ? r[metricConfigId][0]
+        : r[metricField.id]
+      : null;
+
+    const metricValue = cellValue(metricCell);
+    const parsedMetric = metricValue && typeof metricValue === "object" && "rawValue" in metricValue
+      ? metricValue.rawValue
+      : metricValue;
+
+    const m = metricField ? Number(parsedMetric) || 0 : 1;
     cur.value += m;
   }
 
@@ -71,14 +128,16 @@ function drawViz(vizData) {
       return;
     }
 
-    if (!d3 || typeof d3.hierarchy !== "function") {
+    const d3lib = d3 || window.d3;
+
+    if (!d3lib || typeof d3lib.hierarchy !== "function") {
       rootEl.innerHTML =
         "<div style='padding:12px'>La librairie D3 n’a pas été chargée. Recharge la page ou rebuild le bundle.</div>";
       return;
     }
 
-    const width = dscc.getWidth();
-    const height = dscc.getHeight();
+    const width = toNumber(dscc.getWidth(), 800);
+    const height = toNumber(dscc.getHeight(), 600);
 
     const dims = vizData?.fields?.dims || vizData?.fields?.dimensions || [];
     const metrics = vizData?.fields?.metric || vizData?.fields?.metrics || [];
@@ -88,6 +147,8 @@ function drawViz(vizData) {
 
     const dimIds = dimList.map((d) => d.id).filter(Boolean);
     const metricId = metricList.length > 0 ? metricList[0].id : null;
+
+    const configIds = resolveConfigIds(vizData, dimList, metricList);
 
     const rows = Array.isArray(vizData?.tables?.DEFAULT) ? vizData.tables.DEFAULT : [];
 
@@ -102,20 +163,20 @@ function drawViz(vizData) {
       return;
     }
 
-    const showValue = !!getStyle(vizData, "showValue", false);
-    const fontSize = Number(getStyle(vizData, "fontSize", 12));
+    const showValue = Boolean(getStyle(vizData, "showValue", false));
+    const fontSize = toNumber(getStyle(vizData, "fontSize", 12), 12);
     const fontFamily = getStyle(vizData, "fontFamily", "Inter, Arial, sans-serif");
-    const nodeRadius = Number(getStyle(vizData, "nodeRadius", 4));
-    const indent = Number(getStyle(vizData, "indent", 180));
-    const rowHeight = Number(getStyle(vizData, "rowHeight", 24));
-    const linkWidth = Number(getStyle(vizData, "linkWidth", 1.5));
+    const nodeRadius = toNumber(getStyle(vizData, "nodeRadius", 4), 4);
+    const indent = toNumber(getStyle(vizData, "indent", 180), 180);
+    const rowHeight = toNumber(getStyle(vizData, "rowHeight", 24), 24);
+    const linkWidth = toNumber(getStyle(vizData, "linkWidth", 1.5), 1.5);
     const backgroundColor = getStyle(vizData, "backgroundColor", "#ffffff");
     const labelColor = getStyle(vizData, "labelColor", "#111111");
     const linkColor = getStyle(vizData, "linkColor", "#9aa4b5");
     const nodeColor = getStyle(vizData, "nodeColor", "#6c8cf5");
     const nodeCollapsedColor = getStyle(vizData, "nodeCollapsedColor", "#324679");
 
-    const data = buildHierarchy(rows, dimIds, metricId);
+    const data = buildHierarchy(rows, dimList, metricList[0], configIds) || { name: "root", children: [], value: 0 };
 
     rootEl.style.background = backgroundColor;
     rootEl.style.color = labelColor;
@@ -138,13 +199,13 @@ function drawViz(vizData) {
     meta.innerHTML = `<strong>Dimensions :</strong> ${dimBadges} &nbsp; <strong>Métrique :</strong> ${metricBadge}`;
     container.appendChild(meta);
 
-    const svg = d3.select(container).append("svg").attr("width", width);
+    const svg = d3lib.select(container).append("svg").attr("width", width);
     const g = svg.append("g").attr("transform", "translate(20,20)");
 
     const dx = rowHeight;
     const dy = indent;
 
-    const root = d3.hierarchy(data);
+    const root = d3lib.hierarchy(data);
     root.x0 = 0;
     root.y0 = 0;
 
@@ -155,10 +216,10 @@ function drawViz(vizData) {
       if (d.depth > 1) d.children = null;
     });
 
-    const tree = d3.tree().nodeSize([dx, dy]);
+    const tree = d3lib.tree().nodeSize([dx, dy]);
 
     function diagonal(d) {
-      return d3.linkHorizontal().x((x) => x.y).y((y) => y.x)(d);
+      return d3lib.linkHorizontal().x((x) => x.y).y((y) => y.x)(d);
     }
 
     function update(source) {
