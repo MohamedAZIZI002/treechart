@@ -99,8 +99,9 @@ function buildHierarchy(rows, dimFields, metricField, configIds) {
     const parsedMetric = metricValue && typeof metricValue === "object" && "rawValue" in metricValue
       ? metricValue.rawValue
       : metricValue;
+    const numericMetric = Number(parsedMetric);
 
-    const m = metricField ? Number(parsedMetric) || 0 : 1;
+    const m = metricField ? (Number.isFinite(numericMetric) ? numericMetric : 1) : 1;
     cur.value += m;
   }
 
@@ -204,6 +205,7 @@ function drawViz(vizData) {
 
     const dx = rowHeight;
     const dy = indent;
+    const caretPath = "M -4 -4 L 4 0 L -4 4 Z";
 
     const root = d3lib.hierarchy(data);
     root.x0 = 0;
@@ -236,11 +238,15 @@ function drawViz(vizData) {
       });
 
       const innerHeight = right.x - left.x + 40;
+      const maxY = d3lib.max(nodes, (d) => d.y) || 0;
 
       // Espace disponible moins le panneau de métadonnées.
       const metaHeight = meta.offsetHeight || 0;
       const svgHeight = Math.max(height - metaHeight - 16, innerHeight);
+      const contentWidth = maxY + dy + 60;
       svg.attr("height", svgHeight);
+      svg.attr("width", width);
+      svg.attr("viewBox", `0 0 ${Math.max(width, contentWidth)} ${svgHeight}`);
 
       const node = g.selectAll("g.node").data(nodes, (d) => d.id);
 
@@ -266,6 +272,15 @@ function drawViz(vizData) {
         .attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
 
       nodeEnter
+        .append("path")
+        .attr("class", "caret")
+        .attr("d", caretPath)
+        .attr("fill", labelColor)
+        .attr("transform", (d) =>
+          `translate(${d._children || d.children ? -nodeRadius - 10 : -1000},0) rotate(${d.children ? 90 : 0})`
+        );
+
+      nodeEnter
         .append("text")
         .attr("dy", "0.32em")
         .attr("x", (d) => (d._children ? -10 : 10))
@@ -283,6 +298,13 @@ function drawViz(vizData) {
       const nodeUpdate = nodeEnter.merge(node);
       nodeUpdate.transition().duration(250).attr("transform", (d) => `translate(${d.y},${d.x})`);
       nodeUpdate.select("circle").attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
+      nodeUpdate
+        .select("path.caret")
+        .attr("fill", labelColor)
+        .attr("transform", (d) =>
+          `translate(${d._children || d.children ? -nodeRadius - 10 : -1000},0) rotate(${d.children ? 90 : 0})`
+        )
+        .attr("opacity", (d) => (d._children || d.children ? 1 : 0));
 
       node.exit().transition().duration(250).attr("transform", () => `translate(${source.y},${source.x})`).remove();
 
