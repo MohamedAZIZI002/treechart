@@ -15,8 +15,20 @@ function clear(el) {
 }
 
 function getStyle(vizData, id, fallback) {
+  const style = vizData?.style;
+
   try {
-    const entry = vizData?.style?.[id];
+    const findEntry = (obj) => {
+      if (!obj || typeof obj !== "object") return undefined;
+      if (id in obj) return obj[id];
+      for (const key of Object.keys(obj)) {
+        const nested = obj[key];
+        if (nested && typeof nested === "object" && id in nested) return nested[id];
+      }
+      return undefined;
+    };
+
+    const entry = findEntry(style);
     if (entry === undefined || entry === null || entry === "") return fallback;
 
     if (typeof entry === "object") {
@@ -24,6 +36,7 @@ function getStyle(vizData, id, fallback) {
       if ("color" in entry && entry.color !== undefined && entry.color !== "") return entry.color;
       if ("defaultValue" in entry && entry.defaultValue !== undefined && entry.defaultValue !== "")
         return entry.defaultValue;
+      if ("opacity" in entry && entry.opacity !== undefined && entry.opacity !== "") return entry;
     }
 
     return entry;
@@ -41,7 +54,10 @@ function toCssColor(value, fallback) {
 
     if (hasRGB) {
       const clampByte = (n) => Math.max(0, Math.min(255, Number(n) || 0));
-      const alpha = Number.isFinite(c.a) ? Math.max(0, Math.min(1, c.a)) : 1;
+      const alphaFromValue = Number.isFinite(value?.opacity) ? Number(value.opacity) : undefined;
+      const alpha = Number.isFinite(c.a)
+        ? Math.max(0, Math.min(1, c.a))
+        : Math.max(0, Math.min(1, alphaFromValue ?? 1));
       return `rgba(${clampByte(c.r)}, ${clampByte(c.g)}, ${clampByte(c.b)}, ${alpha})`;
     }
 
