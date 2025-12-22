@@ -178,12 +178,14 @@ function buildHierarchy(rows, dimFields, metricField, configIds) {
 
   const dimCount = Array.isArray(dimFields) ? dimFields.length : 0;
 
-  const getOrCreateChild = (parent, name) => {
+  const getOrCreateChild = (parent, name, rawValue) => {
     if (!parent.children) parent.children = [];
     let c = parent.children.find((x) => x.name === name);
     if (!c) {
-      c = { name, children: [], value: 0 };
+      c = { name, rawValue, children: [], value: 0 };
       parent.children.push(c);
+    } else if (!("rawValue" in c)) {
+      c.rawValue = rawValue;
     }
     return c;
   };
@@ -198,8 +200,9 @@ function buildHierarchy(rows, dimFields, metricField, configIds) {
       const fromFieldArray = Array.isArray(fromFieldId) ? fromFieldId[i] : fromFieldId;
 
       const resolved = cellValue(fromConfig ?? fromFieldArray);
+      const rawValue = resolved != null ? resolved : "";
       const val = resolved != null ? String(resolved) : "(null)";
-      cur = getOrCreateChild(cur, val);
+      cur = getOrCreateChild(cur, val, rawValue);
     }
 
     const metricCell = metricField
@@ -274,6 +277,8 @@ function drawViz(vizData) {
     const showLabels = Boolean(getStyle(vizData, "showLabels", true));
     const showValues = Boolean(getStyle(vizData, "showValues", false));
     const showValue = Boolean(getStyle(vizData, "showValue", showValues));
+    const rootLabelRaw = getStyle(vizData, "rootLabel", "root");
+    const rootLabel = rootLabelRaw == null ? "" : String(rootLabelRaw);
     const fontSize = toNumber(getStyle(vizData, "fontSize", 12), 12);
     const fontFamily = getStyle(vizData, "fontFamily", "Inter, Arial, sans-serif");
     const nodeRadius = toNumber(getStyle(vizData, "nodeRadius", 4), 4);
@@ -289,6 +294,12 @@ function drawViz(vizData) {
     const enableZoom = Boolean(getStyle(vizData, "enableZoom", true));
     const enablePan = Boolean(getStyle(vizData, "enablePan", true));
     const showTooltip = Boolean(getStyle(vizData, "showTooltip", true));
+    const interactions = vizData?.interactions || {};
+    const filterAction = dscc?.InteractionType?.FILTER || "FILTER";
+    const clickInteractionId = "click";
+    const supportsFiltering = Array.isArray(interactions[clickInteractionId]?.supportedActions)
+      ? interactions[clickInteractionId].supportedActions.includes(filterAction)
+      : false;
 
     const data = buildHierarchy(rows, dimList, metricList[0], configIds) || { name: "root", children: [], value: 0 };
 
@@ -370,6 +381,22 @@ function drawViz(vizData) {
 
     const tree = d3lib.tree().nodeSize([dx, dy]);
 
+    const emitFilter = (node) => {
+      if (!supportsFiltering) return;
+
+      const path = node.ancestors().reverse().slice(1);
+
+      if (!path.length) {
+        dscc.clearInteraction(clickInteractionId, filterAction);
+        return;
+      }
+
+      const concepts = dimList.slice(0, path.length).map((d) => d.id);
+      const values = path.map((p) => (p?.data?.rawValue !== undefined ? p.data.rawValue : p.data?.name || ""));
+
+      dscc.sendInteraction(clickInteractionId, filterAction, { concepts, values: [values] });
+    };
+
     function diagonal(d) {
       return d3lib.linkHorizontal().x((x) => x.y).y((y) => y.x)(d);
     }
@@ -413,12 +440,14 @@ function drawViz(vizData) {
             d.children = d._children;
             d._children = null;
           }
+          emitFilter(d);
           update(d);
         })
         .on("mouseenter", (event, d) => {
           if (!tooltip) return;
+          const displayName = d.depth === 0 ? rootLabel : d.data.name || "";
           const val = d.value != null ? d.value : "";
-          tooltip.innerHTML = `<div>${d.data.name || ""}</div>${val !== "" ? `<div class="value">${val}</div>` : ""}`;
+          tooltip.innerHTML = `<div>${displayName}</div>${val !== "" ? `<div class="value">${val}</div>` : ""}`;
           tooltip.style.opacity = "1";
           tooltip.style.left = `${event.clientX + 12}px`;
           tooltip.style.top = `${event.clientY + 12}px`;
@@ -457,8 +486,12 @@ function drawViz(vizData) {
         .style("font-family", fontFamily)
         .text((d) => {
           if (!showLabels) return "";
-          const base = d.data.name || "root";
-          if (showValue) return `${base} (${d.value ?? 0})`;
+
+          const base = d.depth === 0 ? rootLabel : d.data.name || "";
+          if (showValue) {
+            const valueText = d.value ?? 0;
+            return base ? `${base} (${valueText})` : `${valueText}`;
+          }
           return base;
         });
 
