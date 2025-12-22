@@ -294,6 +294,10 @@ function drawViz(vizData) {
     const nodeColor = getColor(vizData, "nodeColor", "#6c8cf5");
     const nodeCollapsedColor = getColor(vizData, "nodeCollapsedColor", "#324679");
     const showLegend = Boolean(getStyle(vizData, "showLegend", true));
+    const showFieldLegend = Boolean(getStyle(vizData, "showFieldLegend", true));
+    const orientationRaw = getStyle(vizData, "orientation", "horizontal");
+    const orientation = typeof orientationRaw === "string" ? orientationRaw.toLowerCase() : "horizontal";
+    const isVertical = orientation === "vertical";
     const enableZoom = Boolean(getStyle(vizData, "enableZoom", true));
     const enablePan = Boolean(getStyle(vizData, "enablePan", true));
     const showTooltip = Boolean(getStyle(vizData, "showTooltip", true));
@@ -314,32 +318,39 @@ function drawViz(vizData) {
     container.className = "viz-container";
     rootEl.appendChild(container);
 
-    const meta = document.createElement("div");
-    meta.className = "meta-panel";
-    meta.style.color = labelColor;
-    meta.style.fontFamily = fontFamily;
-    const dimBadges = dimIds.length
-      ? dimIds
-          .map((id) => `<span class=\"pill\">${dimList.find((d) => d.id === id)?.name || id}</span>`)
-          .join(" ")
-      : '<span class="pill empty">Aucune dimension</span>';
-    const metricBadge = metricId
-      ? `<span class="pill metric">${metricList.find((m) => m.id === metricId)?.name || metricId}</span>`
-      : '<span class="pill metric empty">Aucune métrique</span>';
-    meta.innerHTML = `<strong>Dimensions :</strong> ${dimBadges} &nbsp; <strong>Métrique :</strong> ${metricBadge}`;
+    const shouldShowMeta = showFieldLegend || showLegend;
+    const meta = shouldShowMeta ? document.createElement("div") : null;
+    if (meta) {
+      meta.className = "meta-panel";
+      meta.style.color = labelColor;
+      meta.style.fontFamily = fontFamily;
 
-    if (showLegend) {
-      const legend = document.createElement("div");
-      legend.className = "legend";
-      legend.innerHTML = `
-        <span class="legend-item"><span class="legend-swatch" style="background:${nodeColor}"></span> Ouvert</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:${nodeCollapsedColor}"></span> Fermé</span>
-        <span class="legend-item"><span class="legend-swatch" style="background:${linkColor}; border-radius: 3px; height: 6px;"></span> Liens</span>
-      `;
-      meta.appendChild(legend);
+      if (showFieldLegend) {
+        const dimBadges = dimIds.length
+          ? dimIds
+              .map((id) => `<span class=\"pill\">${dimList.find((d) => d.id === id)?.name || id}</span>`)
+              .join(" ")
+          : '<span class="pill empty">Aucune dimension</span>';
+        const metricBadge = metricId
+          ? `<span class="pill metric">${metricList.find((m) => m.id === metricId)?.name || metricId}</span>`
+          : '<span class="pill metric empty">Aucune métrique</span>';
+        const legendText = `<strong>Dimensions :</strong> ${dimBadges} &nbsp; <strong>Métrique :</strong> ${metricBadge}`;
+        meta.innerHTML = legendText;
+      }
+
+      if (showLegend) {
+        const legend = document.createElement("div");
+        legend.className = "legend";
+        legend.innerHTML = `
+          <span class="legend-item"><span class="legend-swatch" style="background:${nodeColor}"></span> Ouvert</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:${nodeCollapsedColor}"></span> Fermé</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:${linkColor}; border-radius: 3px; height: 6px;"></span> Liens</span>
+        `;
+        meta.appendChild(legend);
+      }
+
+      container.appendChild(meta);
     }
-
-    container.appendChild(meta);
 
     const tooltip = showTooltip ? document.createElement("div") : null;
     if (tooltip) {
@@ -390,6 +401,8 @@ function drawViz(vizData) {
 
     const tree = d3lib.tree().nodeSize([dx, dy]);
 
+    let clickTimer = null;
+
     const emitFilter = (node) => {
       if (!supportsFiltering) return;
 
@@ -407,6 +420,9 @@ function drawViz(vizData) {
     };
 
     function diagonal(d) {
+      if (isVertical) {
+        return d3lib.linkVertical().x((x) => x.x).y((y) => y.y)(d);
+      }
       return d3lib.linkHorizontal().x((x) => x.y).y((y) => y.x)(d);
     }
 
@@ -423,16 +439,38 @@ function drawViz(vizData) {
         if (n.x > right.x) right = n;
       });
 
-      const innerHeight = right.x - left.x + 40;
+      const minX = d3lib.min(nodes, (d) => d.x) || 0;
+      const maxX = d3lib.max(nodes, (d) => d.x) || 0;
       const maxY = d3lib.max(nodes, (d) => d.y) || 0;
 
       // Espace disponible moins le panneau de métadonnées.
-      const metaHeight = meta.offsetHeight || 0;
-      const svgHeight = Math.max(height - metaHeight - 16, innerHeight);
-      const contentWidth = maxY + dy + 60;
-      svg.attr("height", svgHeight);
-      svg.attr("width", width);
-      svg.attr("viewBox", `0 0 ${Math.max(width, contentWidth)} ${svgHeight}`);
+      const metaHeight = meta?.offsetHeight || 0;
+
+      if (isVertical) {
+        const innerWidth = maxX - minX + dx * 2;
+        const innerHeight = maxY + dy + 60;
+        const svgHeight = Math.max(height - metaHeight - 16, innerHeight);
+        const svgWidth = Math.max(width, innerWidth);
+        svg.attr("height", svgHeight);
+        svg.attr("width", svgWidth);
+        svg.attr("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+      } else {
+        const innerHeight = right.x - left.x + 40;
+        const contentWidth = maxY + dy + 60;
+        const svgHeight = Math.max(height - metaHeight - 16, innerHeight);
+        svg.attr("height", svgHeight);
+        svg.attr("width", width);
+        svg.attr("viewBox", `0 0 ${Math.max(width, contentWidth)} ${svgHeight}`);
+      }
+
+      const translatePoint = (d, usePrevious = false) => {
+        const xVal = usePrevious ? d.x0 : d.x;
+        const yVal = usePrevious ? d.y0 : d.y;
+        return {
+          tx: isVertical ? xVal : yVal,
+          ty: isVertical ? yVal : xVal,
+        };
+      };
 
       const node = g.selectAll("g.node").data(nodes, (d) => d.id);
 
@@ -440,21 +478,27 @@ function drawViz(vizData) {
         .enter()
         .append("g")
         .attr("class", "node")
-        .attr("transform", () => `translate(${source.y0},${source.x0})`)
+        .attr("transform", () => {
+          const { tx, ty } = translatePoint(source, true);
+          return `translate(${tx},${ty})`;
+        })
         .on("click", (event, d) => {
-          if (event.detail > 1) return;
-
-          if (d.children) {
-            d._children = d.children;
-            d.children = null;
-          } else {
-            d.children = d._children;
-            d._children = null;
-          }
-          update(d);
+          if (clickTimer) clearTimeout(clickTimer);
+          clickTimer = setTimeout(() => {
+            if (d.children) {
+              d._children = d.children;
+              d.children = null;
+            } else {
+              d.children = d._children;
+              d._children = null;
+            }
+            update(d);
+          }, 180);
         })
         .on("dblclick", (event, d) => {
           event.preventDefault();
+          if (clickTimer) clearTimeout(clickTimer);
+          clickTimer = null;
           emitFilter(d);
         })
         .on("mouseenter", (event, d) => {
@@ -512,7 +556,10 @@ function drawViz(vizData) {
         });
 
       const nodeUpdate = nodeEnter.merge(node);
-      nodeUpdate.transition().duration(250).attr("transform", (d) => `translate(${d.y},${d.x})`);
+      nodeUpdate.transition().duration(250).attr("transform", (d) => {
+        const { tx, ty } = translatePoint(d);
+        return `translate(${tx},${ty})`;
+      });
       nodeUpdate
         .select("circle")
         .attr("fill", (d) => (d._children && !d.children ? nodeCollapsedColor : nodeColor));
@@ -524,7 +571,15 @@ function drawViz(vizData) {
         )
         .attr("opacity", (d) => (d._children || d.children ? 1 : 0));
 
-      node.exit().transition().duration(250).attr("transform", () => `translate(${source.y},${source.x})`).remove();
+      node
+        .exit()
+        .transition()
+        .duration(250)
+        .attr("transform", () => {
+          const { tx, ty } = translatePoint(source);
+          return `translate(${tx},${ty})`;
+        })
+        .remove();
 
       const link = g.selectAll("path.link").data(links, (d) => d.target.id);
 
