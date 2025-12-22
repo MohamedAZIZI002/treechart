@@ -8,5 +8,6 @@ html, body { margin: 0; padding: 0; overflow: hidden; font-family: Arial, sans-s
 .pill.empty { opacity: 0.55; font-style: italic; }
 svg { flex: 1 1 auto; width: 100%; border-radius: 8px; box-sizing: border-box; }
 .node circle { cursor: pointer; transition: fill 0.2s ease, stroke 0.2s ease; }
+.node .caret { cursor: pointer; transition: transform 0.2s ease, opacity 0.2s ease; }
 .node text { user-select: none; }
 .link { fill: none; stroke-opacity: 0.6; }
