@@ -14,32 +14,69 @@ function clear(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
+function unwrapStyleValue(entry) {
+  try {
+    let current = entry;
+    const seen = new Set();
+
+    while (current && typeof current === "object" && !Array.isArray(current)) {
+      if (seen.has(current)) break;
+      seen.add(current);
+
+      if (current.value !== undefined && current.value !== "") {
+        current = current.value;
+        continue;
+      }
+      if (current.color !== undefined && current.color !== "") {
+        current = current.color;
+        continue;
+      }
+      if (current.defaultValue !== undefined && current.defaultValue !== "") {
+        return current.defaultValue;
+      }
+      if ("opacity" in current && current.opacity !== undefined && current.opacity !== "") {
+        return current;
+      }
+
+      break;
+    }
+
+    return current;
+  } catch {
+    return entry;
+  }
+}
+
 function getStyle(vizData, id, fallback) {
   const style = vizData?.style;
 
   try {
     const findEntry = (obj) => {
-      if (!obj || typeof obj !== "object") return undefined;
+      if (obj == null) return undefined;
+      if (Array.isArray(obj)) {
+        for (const item of obj) {
+          const nested = findEntry(item);
+          if (nested !== undefined) return nested;
+        }
+        return undefined;
+      }
+      if (typeof obj !== "object") return undefined;
+
       if (id in obj) return obj[id];
+      if (obj?.id === id) return obj;
+
       for (const key of Object.keys(obj)) {
-        const nested = obj[key];
-        if (nested && typeof nested === "object" && id in nested) return nested[id];
+        const nested = findEntry(obj[key]);
+        if (nested !== undefined) return nested;
       }
       return undefined;
     };
 
     const entry = findEntry(style);
-    if (entry === undefined || entry === null || entry === "") return fallback;
+    const unwrapped = unwrapStyleValue(entry);
+    if (unwrapped === undefined || unwrapped === null || unwrapped === "") return fallback;
 
-    if (typeof entry === "object") {
-      if ("value" in entry && entry.value !== undefined && entry.value !== "") return entry.value;
-      if ("color" in entry && entry.color !== undefined && entry.color !== "") return entry.color;
-      if ("defaultValue" in entry && entry.defaultValue !== undefined && entry.defaultValue !== "")
-        return entry.defaultValue;
-      if ("opacity" in entry && entry.opacity !== undefined && entry.opacity !== "") return entry;
-    }
-
-    return entry;
+    return unwrapped;
   } catch {
     return fallback;
   }
@@ -47,14 +84,17 @@ function getStyle(vizData, id, fallback) {
 
 function toCssColor(value, fallback) {
   try {
-    if (typeof value === "string" && value.trim() !== "") return value;
+    const resolved = unwrapStyleValue(value);
+    if (typeof resolved === "string" && resolved.trim() !== "") return resolved;
 
-    const c = typeof value === "object" && value !== null ? value.color || value : null;
-    const hasRGB = c && ["r", "g", "b"].every((k) => c[k] !== undefined && c[k] !== null);
+    const c = typeof resolved === "object" && resolved !== null ? unwrapStyleValue(resolved.color) || resolved : null;
+    if (typeof c === "string" && c.trim() !== "") return c;
+
+    const hasRGB = c && typeof c === "object" && ["r", "g", "b"].every((k) => c[k] !== undefined && c[k] !== null);
 
     if (hasRGB) {
       const clampByte = (n) => Math.max(0, Math.min(255, Number(n) || 0));
-      const alphaFromValue = Number.isFinite(value?.opacity) ? Number(value.opacity) : undefined;
+      const alphaFromValue = Number.isFinite(resolved?.opacity) ? Number(resolved.opacity) : undefined;
       const alpha = Number.isFinite(c.a)
         ? Math.max(0, Math.min(1, c.a))
         : Math.max(0, Math.min(1, alphaFromValue ?? 1));
