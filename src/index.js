@@ -135,6 +135,31 @@ function toNumber(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function parseMetricValue(metricCell, fallback = 0) {
+  try {
+    let raw = metricCell;
+
+    if (raw && typeof raw === "object") {
+      if ("rawValue" in raw && raw.rawValue !== undefined) raw = raw.rawValue;
+      else if ("value" in raw && raw.value !== undefined) raw = raw.value;
+      else if ("formattedValue" in raw && raw.formattedValue !== undefined) raw = raw.formattedValue;
+    }
+
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) return numeric;
+
+    if (typeof raw === "string") {
+      const normalized = raw.replace(/[\s,\u00a0]/g, "");
+      const normalizedNumber = Number(normalized);
+      if (Number.isFinite(normalizedNumber)) return normalizedNumber;
+    }
+
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function cellValue(cell) {
   if (cell == null) return null;
   if (typeof cell === "object") {
@@ -183,13 +208,7 @@ function buildHierarchy(rows, dimFields, metricField, configIds) {
         : r[metricField.id]
       : null;
 
-    const metricValue = cellValue(metricCell);
-    const parsedMetric = metricValue && typeof metricValue === "object" && "rawValue" in metricValue
-      ? metricValue.rawValue
-      : metricValue;
-    const numericMetric = Number(parsedMetric);
-
-    const m = metricField ? (Number.isFinite(numericMetric) ? numericMetric : 1) : 1;
+    const m = metricField ? parseMetricValue(metricCell, 0) : 1;
     cur.value += m;
   }
 
@@ -344,11 +363,9 @@ function drawViz(vizData) {
     root.x0 = 0;
     root.y0 = 0;
 
-    // collapse au-delà du niveau 1
     root.descendants().forEach((d) => {
       d.id = d.id || Math.random().toString(16).slice(2);
-      d._children = d.children;
-      if (d.depth > 1) d.children = null;
+      d._children = null;
     });
 
     const tree = d3lib.tree().nodeSize([dx, dy]);
@@ -419,7 +436,7 @@ function drawViz(vizData) {
       nodeEnter
         .append("circle")
         .attr("r", nodeRadius)
-        .attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
+        .attr("fill", (d) => (d._children && !d.children ? nodeCollapsedColor : nodeColor));
 
       nodeEnter
         .append("path")
@@ -439,15 +456,17 @@ function drawViz(vizData) {
         .style("fill", labelColor)
         .style("font-family", fontFamily)
         .text((d) => {
-          if (d.depth === 0 || !showLabels) return "";
-          const base = d.data.name;
+          if (!showLabels) return "";
+          const base = d.data.name || "root";
           if (showValue) return `${base} (${d.value ?? 0})`;
           return base;
         });
 
       const nodeUpdate = nodeEnter.merge(node);
       nodeUpdate.transition().duration(250).attr("transform", (d) => `translate(${d.y},${d.x})`);
-      nodeUpdate.select("circle").attr("fill", (d) => (d._children ? nodeCollapsedColor : nodeColor));
+      nodeUpdate
+        .select("circle")
+        .attr("fill", (d) => (d._children && !d.children ? nodeCollapsedColor : nodeColor));
       nodeUpdate
         .select("path.caret")
         .attr("fill", labelColor)
