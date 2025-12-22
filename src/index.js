@@ -16,9 +16,17 @@ function clear(el) {
 
 function getStyle(vizData, id, fallback) {
   try {
-    const s = vizData.style && vizData.style[id];
-    if (s === undefined || s === null || s === "") return fallback;
-    return s;
+    const entry = vizData?.style?.[id];
+    if (entry === undefined || entry === null || entry === "") return fallback;
+
+    if (typeof entry === "object") {
+      if ("value" in entry && entry.value !== undefined && entry.value !== "") return entry.value;
+      if ("color" in entry && entry.color !== undefined && entry.color !== "") return entry.color;
+      if ("defaultValue" in entry && entry.defaultValue !== undefined && entry.defaultValue !== "")
+        return entry.defaultValue;
+    }
+
+    return entry;
   } catch {
     return fallback;
   }
