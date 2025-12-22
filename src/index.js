@@ -125,7 +125,7 @@ function drawViz(vizData) {
     const dscc = window.dscc;
     if (!dscc) {
       rootEl.innerHTML =
-        "<div style='padding:12px'>dscc introuvable. Vérifie que dscc.min.js est bien concaténé dans dist/viz.js.</div>";
+        "<div class='empty-state'>dscc introuvable. Vérifie que dscc.min.js est bien concaténé dans dist/viz.js.</div>";
       return;
     }
 
@@ -133,7 +133,7 @@ function drawViz(vizData) {
 
     if (!d3lib || typeof d3lib.hierarchy !== "function") {
       rootEl.innerHTML =
-        "<div style='padding:12px'>La librairie D3 n’a pas été chargée. Recharge la page ou rebuild le bundle.</div>";
+        "<div class='empty-state'>La librairie D3 n’a pas été chargée. Recharge la page ou rebuild le bundle.</div>";
       return;
     }
 
@@ -155,12 +155,12 @@ function drawViz(vizData) {
 
     if (!dimIds || dimIds.length < 2) {
       rootEl.innerHTML =
-        "<div style='padding:12px'>Ajoute au moins <b>2 dimensions</b> pour construire l’arbre.</div>";
+        "<div class='empty-state'>Ajoute au moins <b>2 dimensions</b> pour construire l’arbre.</div>";
       return;
     }
 
     if (!rows.length) {
-      rootEl.innerHTML = "<div style='padding:12px'>Aucune donnée.</div>";
+      rootEl.innerHTML = "<div class='empty-state'>Aucune donnée.</div>";
       return;
     }
 
@@ -176,6 +176,10 @@ function drawViz(vizData) {
     const linkColor = getStyle(vizData, "linkColor", "#9aa4b5");
     const nodeColor = getStyle(vizData, "nodeColor", "#6c8cf5");
     const nodeCollapsedColor = getStyle(vizData, "nodeCollapsedColor", "#324679");
+    const showLegend = Boolean(getStyle(vizData, "showLegend", true));
+    const enableZoom = Boolean(getStyle(vizData, "enableZoom", true));
+    const enablePan = Boolean(getStyle(vizData, "enablePan", true));
+    const showTooltip = Boolean(getStyle(vizData, "showTooltip", true));
 
     const data = buildHierarchy(rows, dimList, metricList[0], configIds) || { name: "root", children: [], value: 0 };
 
@@ -198,10 +202,43 @@ function drawViz(vizData) {
       ? `<span class="pill metric">${metricList.find((m) => m.id === metricId)?.name || metricId}</span>`
       : '<span class="pill metric empty">Aucune métrique</span>';
     meta.innerHTML = `<strong>Dimensions :</strong> ${dimBadges} &nbsp; <strong>Métrique :</strong> ${metricBadge}`;
+
+    if (showLegend) {
+      const legend = document.createElement("div");
+      legend.className = "legend";
+      legend.innerHTML = `
+        <span class="legend-item"><span class="legend-swatch" style="background:${nodeColor}"></span> Ouvert</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:${nodeCollapsedColor}"></span> Fermé</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:${linkColor}; border-radius: 3px; height: 6px;"></span> Liens</span>
+      `;
+      meta.appendChild(legend);
+    }
+
     container.appendChild(meta);
 
+    const tooltip = showTooltip ? document.createElement("div") : null;
+    if (tooltip) {
+      tooltip.className = "tooltip";
+      rootEl.appendChild(tooltip);
+    }
+
     const svg = d3lib.select(container).append("svg").attr("width", width);
-    const g = svg.append("g").attr("transform", "translate(20,20)");
+    const zoomLayer = svg.append("g").attr("class", "zoom-layer");
+    const g = zoomLayer.append("g").attr("class", "viz-layer");
+
+    const baseTransform = d3lib.zoomIdentity.translate(20, 20);
+    if (enableZoom || enablePan) {
+      const zoom = d3lib
+        .zoom()
+        .scaleExtent(enableZoom ? [0.5, 4] : [1, 1])
+        .on("zoom", (event) => zoomLayer.attr("transform", event.transform));
+
+      svg.call(zoom);
+      svg.call(zoom.transform, baseTransform);
+      if (!enablePan) svg.on("wheel.zoom", null).on("mousedown.zoom", null);
+    } else {
+      zoomLayer.attr("transform", baseTransform);
+    }
 
     const dx = rowHeight;
     const dy = indent;
@@ -264,6 +301,23 @@ function drawViz(vizData) {
             d._children = null;
           }
           update(d);
+        })
+        .on("mouseenter", (event, d) => {
+          if (!tooltip) return;
+          const val = d.value != null ? d.value : "";
+          tooltip.innerHTML = `<div>${d.data.name || ""}</div>${val !== "" ? `<div class="value">${val}</div>` : ""}`;
+          tooltip.style.opacity = "1";
+          tooltip.style.left = `${event.clientX + 12}px`;
+          tooltip.style.top = `${event.clientY + 12}px`;
+        })
+        .on("mousemove", (event) => {
+          if (!tooltip) return;
+          tooltip.style.left = `${event.clientX + 12}px`;
+          tooltip.style.top = `${event.clientY + 12}px`;
+        })
+        .on("mouseleave", () => {
+          if (!tooltip) return;
+          tooltip.style.opacity = "0";
         });
 
       nodeEnter
@@ -349,7 +403,7 @@ function drawViz(vizData) {
   } catch (err) {
     console.error(err);
     rootEl.innerHTML =
-      "<div style='padding:12px'>Une erreur est survenue dans la visualisation (voir la console). Vérifie tes dimensions/métriques et rebuild le package.</div>";
+      "<div class='empty-state'>Une erreur est survenue dans la visualisation (voir la console). Vérifie tes dimensions/métriques et rebuild le package.</div>";
   }
 }
 
