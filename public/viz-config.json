@@ -105,10 +105,6 @@
       "label": "Options d’affichage",
       "elements": [
         { "id": "showLegend", "label": "Afficher la légende", "type": "CHECKBOX", "defaultValue": true },
-        { "id": "showGridlines", "label": "Afficher les grilles", "type": "CHECKBOX", "defaultValue": true },
-        { "id": "showAxes", "label": "Afficher les axes", "type": "CHECKBOX", "defaultValue": true },
-        { "id": "showDots", "label": "Afficher les points", "type": "CHECKBOX", "defaultValue": true },
-        { "id": "showFill", "label": "Remplir les zones", "type": "CHECKBOX", "defaultValue": true },
         { "id": "showValues", "label": "Afficher les valeurs", "type": "CHECKBOX", "defaultValue": true },
         { "id": "showLabels", "label": "Afficher les labels", "type": "CHECKBOX", "defaultValue": true },
         { "id": "showTooltip", "label": "Afficher l’infobulle", "type": "CHECKBOX", "defaultValue": true }
