@@ -212,7 +212,9 @@ function drawViz(vizData) {
       return;
     }
 
-    const showValue = Boolean(getStyle(vizData, "showValue", false));
+    const showLabels = Boolean(getStyle(vizData, "showLabels", true));
+    const showValues = Boolean(getStyle(vizData, "showValues", false));
+    const showValue = Boolean(getStyle(vizData, "showValue", showValues));
     const fontSize = toNumber(getStyle(vizData, "fontSize", 12), 12);
     const fontFamily = getStyle(vizData, "fontFamily", "Inter, Arial, sans-serif");
     const nodeRadius = toNumber(getStyle(vizData, "nodeRadius", 4), 4);
@@ -241,6 +243,8 @@ function drawViz(vizData) {
 
     const meta = document.createElement("div");
     meta.className = "meta-panel";
+    meta.style.color = labelColor;
+    meta.style.fontFamily = fontFamily;
     const dimBadges = dimIds.length
       ? dimIds
           .map((id) => `<span class=\"pill\">${dimList.find((d) => d.id === id)?.name || id}</span>`)
@@ -270,7 +274,11 @@ function drawViz(vizData) {
       rootEl.appendChild(tooltip);
     }
 
-    const svg = d3lib.select(container).append("svg").attr("width", width);
+    const svg = d3lib
+      .select(container)
+      .append("svg")
+      .attr("width", width)
+      .style("background", backgroundColor);
     const zoomLayer = svg.append("g").attr("class", "zoom-layer");
     const g = zoomLayer.append("g").attr("class", "viz-layer");
 
@@ -391,7 +399,7 @@ function drawViz(vizData) {
         .style("fill", labelColor)
         .style("font-family", fontFamily)
         .text((d) => {
-          if (d.depth === 0) return "";
+          if (d.depth === 0 || !showLabels) return "";
           const base = d.data.name;
           if (showValue) return `${base} (${d.value ?? 0})`;
           return base;
