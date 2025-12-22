@@ -81,6 +81,16 @@
           "defaultValue": 4
         },
         {
+          "id": "orientation",
+          "label": "Orientation",
+          "type": "SELECT_SINGLE",
+          "options": [
+            { "label": "Horizontal", "value": "horizontal" },
+            { "label": "Vertical", "value": "vertical" }
+          ],
+          "defaultValue": "horizontal"
+        },
+        {
           "id": "indent",
           "label": "Indent (horizontal)",
           "type": "TEXTINPUT",
@@ -111,6 +121,7 @@
       "label": "Options d’affichage",
       "elements": [
         { "id": "showLegend", "label": "Afficher la légende", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "showFieldLegend", "label": "Afficher les champs (dimensions/métrique)", "type": "CHECKBOX", "defaultValue": true },
         { "id": "showValues", "label": "Afficher les valeurs", "type": "CHECKBOX", "defaultValue": true },
         { "id": "showLabels", "label": "Afficher les labels", "type": "CHECKBOX", "defaultValue": true },
         { "id": "showTooltip", "label": "Afficher l’infobulle", "type": "CHECKBOX", "defaultValue": true }
@@ -121,7 +132,8 @@
       "label": "Interactions",
       "elements": [
         { "id": "enableZoom", "label": "Zoom", "type": "CHECKBOX", "defaultValue": true },
-        { "id": "enablePan", "label": "Pan", "type": "CHECKBOX", "defaultValue": true }
+        { "id": "enablePan", "label": "Pan", "type": "CHECKBOX", "defaultValue": true },
+        { "id": "enableDoubleClickFilter", "label": "Filtrer sur double-clic", "type": "CHECKBOX", "defaultValue": true }
       ]
     },
     {

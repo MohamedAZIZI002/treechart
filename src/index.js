@@ -307,6 +307,7 @@ function drawViz(vizData) {
     const supportsFiltering = Array.isArray(interactions[clickInteractionId]?.supportedActions)
       ? interactions[clickInteractionId].supportedActions.includes(filterAction)
       : false;
+    const enableDoubleClickFilter = Boolean(getStyle(vizData, "enableDoubleClickFilter", true));
 
     const data = buildHierarchy(rows, dimList, metricList[0], configIds) || { name: "root", children: [], value: 0 };
 
@@ -496,9 +497,10 @@ function drawViz(vizData) {
           }, 180);
         })
         .on("dblclick", (event, d) => {
-          event.preventDefault();
           if (clickTimer) clearTimeout(clickTimer);
           clickTimer = null;
+          if (!enableDoubleClickFilter || !supportsFiltering) return;
+          event.preventDefault();
           emitFilter(d);
         })
         .on("mouseenter", (event, d) => {
