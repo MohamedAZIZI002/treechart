@@ -28,6 +28,12 @@
           "defaultValue": false
         },
         {
+          "id": "rootLabel",
+          "label": "Libellé du nœud racine",
+          "type": "TEXTINPUT",
+          "defaultValue": "root"
+        },
+        {
           "id": "fontFamily",
           "label": "Police (CSS)",
           "type": "FONT_FAMILY",

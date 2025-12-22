@@ -200,8 +200,11 @@ function buildHierarchy(rows, dimFields, metricField, configIds) {
       const fromFieldArray = Array.isArray(fromFieldId) ? fromFieldId[i] : fromFieldId;
 
       const resolved = cellValue(fromConfig ?? fromFieldArray);
-      const rawValue = resolved != null ? resolved : "";
-      const val = resolved != null ? String(resolved) : "(null)";
+      const isMissing = resolved === null || resolved === undefined || resolved === "";
+      if (isMissing) break;
+
+      const rawValue = resolved;
+      const val = String(resolved);
       cur = getOrCreateChild(cur, val, rawValue);
     }
 
@@ -433,6 +436,8 @@ function drawViz(vizData) {
         .attr("class", "node")
         .attr("transform", () => `translate(${source.y0},${source.x0})`)
         .on("click", (event, d) => {
+          if (event.detail > 1) return;
+
           if (d.children) {
             d._children = d.children;
             d.children = null;
@@ -440,8 +445,11 @@ function drawViz(vizData) {
             d.children = d._children;
             d._children = null;
           }
-          emitFilter(d);
           update(d);
+        })
+        .on("dblclick", (event, d) => {
+          event.preventDefault();
+          emitFilter(d);
         })
         .on("mouseenter", (event, d) => {
           if (!tooltip) return;
