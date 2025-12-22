@@ -32,6 +32,30 @@ function getStyle(vizData, id, fallback) {
   }
 }
 
+function toCssColor(value, fallback) {
+  try {
+    if (typeof value === "string" && value.trim() !== "") return value;
+
+    const c = typeof value === "object" && value !== null ? value.color || value : null;
+    const hasRGB = c && ["r", "g", "b"].every((k) => c[k] !== undefined && c[k] !== null);
+
+    if (hasRGB) {
+      const clampByte = (n) => Math.max(0, Math.min(255, Number(n) || 0));
+      const alpha = Number.isFinite(c.a) ? Math.max(0, Math.min(1, c.a)) : 1;
+      return `rgba(${clampByte(c.r)}, ${clampByte(c.g)}, ${clampByte(c.b)}, ${alpha})`;
+    }
+
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function getColor(vizData, id, fallback) {
+  const raw = getStyle(vizData, id, fallback);
+  return toCssColor(raw, fallback);
+}
+
 function resolveConfigIds(vizData, dimList, metricList) {
   const fields = vizData?.fields || {};
   const keys = Object.keys(fields);
@@ -179,11 +203,11 @@ function drawViz(vizData) {
     const indent = toNumber(getStyle(vizData, "indent", 180), 180);
     const rowHeight = toNumber(getStyle(vizData, "rowHeight", 24), 24);
     const linkWidth = toNumber(getStyle(vizData, "linkWidth", 1.5), 1.5);
-    const backgroundColor = getStyle(vizData, "backgroundColor", "#ffffff");
-    const labelColor = getStyle(vizData, "labelColor", "#111111");
-    const linkColor = getStyle(vizData, "linkColor", "#9aa4b5");
-    const nodeColor = getStyle(vizData, "nodeColor", "#6c8cf5");
-    const nodeCollapsedColor = getStyle(vizData, "nodeCollapsedColor", "#324679");
+    const backgroundColor = getColor(vizData, "backgroundColor", "#ffffff");
+    const labelColor = getColor(vizData, "labelColor", "#111111");
+    const linkColor = getColor(vizData, "linkColor", "#9aa4b5");
+    const nodeColor = getColor(vizData, "nodeColor", "#6c8cf5");
+    const nodeCollapsedColor = getColor(vizData, "nodeCollapsedColor", "#324679");
     const showLegend = Boolean(getStyle(vizData, "showLegend", true));
     const enableZoom = Boolean(getStyle(vizData, "enableZoom", true));
     const enablePan = Boolean(getStyle(vizData, "enablePan", true));
