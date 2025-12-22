@@ -377,6 +377,12 @@ function drawViz(vizData) {
     root.x0 = 0;
     root.y0 = 0;
 
+    root.each((d) => {
+      if (d?.data && d.data.value !== undefined) {
+        d.value = d.data.value;
+      }
+    });
+
     root.descendants().forEach((d) => {
       d.id = d.id || Math.random().toString(16).slice(2);
       d._children = null;
@@ -454,7 +460,7 @@ function drawViz(vizData) {
         .on("mouseenter", (event, d) => {
           if (!tooltip) return;
           const displayName = d.depth === 0 ? rootLabel : d.data.name || "";
-          const val = d.value != null ? d.value : "";
+          const val = d.data?.value != null ? d.data.value : d.value != null ? d.value : "";
           tooltip.innerHTML = `<div>${displayName}</div>${val !== "" ? `<div class="value">${val}</div>` : ""}`;
           tooltip.style.opacity = "1";
           tooltip.style.left = `${event.clientX + 12}px`;
@@ -484,11 +490,13 @@ function drawViz(vizData) {
           `translate(${d._children || d.children ? -nodeRadius - 10 : -1000},0) rotate(${d.children ? 90 : 0})`
         );
 
+      const labelOffset = nodeRadius + 8;
+
       nodeEnter
         .append("text")
         .attr("dy", "0.32em")
-        .attr("x", (d) => (d._children ? -10 : 10))
-        .attr("text-anchor", (d) => (d._children ? "end" : "start"))
+        .attr("x", -labelOffset)
+        .attr("text-anchor", "end")
         .style("font-size", `${fontSize}px`)
         .style("fill", labelColor)
         .style("font-family", fontFamily)
@@ -496,8 +504,8 @@ function drawViz(vizData) {
           if (!showLabels) return "";
 
           const base = d.depth === 0 ? rootLabel : d.data.name || "";
+          const valueText = d.data?.value ?? d.value ?? 0;
           if (showValue) {
-            const valueText = d.value ?? 0;
             return base ? `${base} (${valueText})` : `${valueText}`;
           }
           return base;
